@@ -64,12 +64,12 @@ At this point, we can look at the participant demographocs
 
 ```{r}
 ggplot(data=wbehav, aes(x=Age, col=Gender)) +
-  geom_histogram(aes(col="white", fill=Gender), colour="white", alpha=0.5, position="identity", binwidth = 1) +
-  #geom_density(aes(fill=Gender), colour="black", position="dodge", bw=1,  alpha=0.5) +
+  geom_histogram(aes(col="white", fill=Gender), 
+                 colour="white", alpha=0.5, 
+                 position="identity", binwidth = 1) +
   scale_color_brewer(palette = "Set1") +
   scale_fill_brewer(palette = "Set1") +
   ggtitle("Age Distribution by Gender") + 
-  #geom_vline(aes(xintercept=grp.mean), linetype="dashed") +
   theme_pander()
 ```
 
@@ -82,11 +82,10 @@ We can now examine the distribution and correlation of Alpha values for Vocab an
 mu <- behav %>% group_by(material) %>% summarize(alpha=mean(alpha))
 
 p1 <- ggplot(behav, aes(x=alpha, fill=material)) +
-  geom_histogram(col="white", binwidth = 0.025, alpha=0.5, position="identity") +
-  #geom_density(aes(fill=material), colour="white", position="dodge", alpha=0.5, bw=0.025) +
+  geom_histogram(col="white", binwidth = 0.025, 
+                 alpha=0.5, position="identity") +
   scale_color_brewer(palette = "Set1") +
   scale_fill_brewer(palette = "Set1") +
-#  geom_vline(aes(fun.data=mean_se, xintercept=material), linetype="dashed") +
   geom_vline(data=mu, aes(xintercept=alpha, color=material),
              linetype="dashed") +
   xlab(expression(paste("Estimated value of ", alpha))) +
@@ -98,9 +97,9 @@ p1 <- ggplot(behav, aes(x=alpha, fill=material)) +
 
 p2 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
   geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
-  geom_smooth(method = "lm", formula = y ~ x, col="red", fill="red", fullrange = T, lwd=2) +
+  geom_smooth(method = "lm", formula = y ~ x, col="red", 
+              fill="red", fullrange = T, lwd=2) +
   theme_pander() +
-  #stat_density_2d(col="red", alpha=0.2) +
   scale_x_continuous() + 
   scale_y_continuous() + 
   ggtitle("(B) Correlation Across Materials") +
@@ -117,8 +116,9 @@ grid.arrange(p1, p2, ncol=2)
 
 ```{r fig.width=5, fig.height=5 }
 p3 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
-  geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
-  geom_smooth(method = "lm", formula = y ~ x, col="red", fill="red", fullrange = T, lwd=2) +
+  geom_point(size=4, alpha=0.5, col="black") + 
+  geom_smooth(method = "lm", formula = y ~ x, col="red", 
+              fill="red", fullrange = T, lwd=2) +
   theme_pander() +
   scale_x_continuous() + 
   scale_y_continuous() + 
@@ -178,8 +178,8 @@ First, let's examine the spectrograms for each channel to make sure it looks nor
 lspectra <- pivot_longer(spectra, cols=names(spectra)[3:130], names_to="Freq")
 
 lspectra <- lspectra %>% rename(Power = value)
-#lspectra <- lspectra %>% mutate(Power = exp(Power))
-lspectra$Frequency <- as.numeric(substr(lspectra$Freq, 0, str_length(lspectra$Freq) -2))
+lspectra$Frequency <- as.numeric(substr(lspectra$Freq, 0, 
+                                        str_length(lspectra$Freq) -2))
 lspectra <- lspectra %>% add_column(Band="Delta", BandMin=0, BandMax=4) 
 lspectra$Band[lspectra$Frequency <= 40] <- "Gamma"
 lspectra$Band[lspectra$Frequency < 30] <- "High Beta"
@@ -233,7 +233,8 @@ gd <- lspectra %>%
         )
 
 ggplot(data=lspectra, aes(x=Frequency, y=Power, Channel)) +
-  geom_rect(data = gd, aes(xmin=Min, xmax=Max, fill=Band),  ymin=0, ymax=Inf, colour=NA, alpha=0.5) +
+  geom_rect(data = gd, aes(xmin=Min, xmax=Max, fill=Band),  
+            ymin=0, ymax=Inf, colour=NA, alpha=0.5) +
   stat_summary(#aes(fill=Channel), 
                fun.data=mean_sdl, 
                geom="ribbon", colour="white", alpha=0.4) +
@@ -251,7 +252,8 @@ ggplot(data=lspectra, aes(x=Frequency, y=Power, Channel)) +
 
 ```
 
-Now, let's create a mean spectrogram with annotations that mark the frequency bands
+Now, let's create a mean spectrogram with annotations that mark the frequency 
+bands.
 
 ```{r}
 
@@ -279,7 +281,7 @@ ggplot(data=alspectra, aes(x=Frequency, y=Power, col=Power)) +
   annotate("rect", xmin = 30, xmax = 40, ymin = 0, ymax = Inf,
            alpha = 0.5, fill=K[7]) +
   stat_summary(fun.data=mean_sdl, geom="ribbon", 
-               alpha=0.5, fill="grey50") +
+               alpha=0.5, fill="grey50", col="white") +
   stat_summary(fun=mean, geom="line", lwd=2) +
   coord_cartesian(xlim=c(0,40), ylim=c(5,18)) +
   xlab("Frequency (Hz)") +
@@ -296,42 +298,53 @@ ggplot(data=alspectra, aes(x=Frequency, y=Power, col=Power)) +
 
 # Correlations with Learning Rate
 
-First, we calculate the mean power for every band and channel, remove participants not included, and correct for multiple comparisons by band using the BH (False Discovery) method.
+First, we calculate the mean power for every band and channel, remove 
+participants not included in the final analysis, and correct for multiple
+comparisons by band using the BH (False Discovery) method.
 
 ```{r}
 
 wbehav <- wbehav %>%
-  mutate(GlobalAlpha=(Vocabulary + Maps)/2)
+  mutate(GlobalAlpha = (Vocabulary + Maps)/2)
 
-Adata <- lspectra %>% group_by(Subject, Channel, Band) %>% summarize(Power=mean(Power))
+Adata <- lspectra %>% 
+  group_by(Subject, Channel, Band) %>% 
+  summarize(Power=mean(Power))
 
 Fdata <- inner_join(Adata, behav, by="Subject")
 
-Cdata <- Fdata %>%
+Rdata <- Fdata %>%
   group_by(material, Channel, Band) %>%
   summarise(r = cor(Power, alpha),
             p = cor.test(Power, alpha)$p.value)
 
-Cdata <- Cdata %>%
+Rdata <- Rdata %>%
   group_by(material, Band) %>%
   mutate(q = p.adjust(p, method="BH")) 
 ```
 
-Here is the full table of statistics:
+We save the correlation data to a file (it will be used to print the topomaps 
+with MNE) and then we display the full table of statistics:
 
 ```{r}
-Cdata %>%
+
+write_csv(Rdata, "correlations_channel_band_eyes_closed.csv", col_names = T)
+
+Rdata %>%
   xtable() %>%
   kable(digits = 3) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-And here is the corresponding distributions of _r_ and _p_ values. The dashed lines correspond to a significant threshold of _p_  < .05 on either a _r_ or a _p_-value scale. 
+And here is a visualization of corresponding distributions of _r_ and _p_ 
+values. The dashed lines correspond to a significant threshold of _p_  < .05
+on either a _r_ or a _p_-value scale. 
 
 ```{r}
-ggplot(Cdata, aes(x=Band, y=r, col=Channel)) +
+ggplot(Rdata, aes(x=Band, y=r, col=Channel)) +
   geom_point() +
-  stat_summary(fun.data = "mean_se", col="black", alpha=0.5, geom = "errorbar") +
+  stat_summary(fun.data = "mean_se", col="black", alpha=0.5,
+               geom = "errorbar") +
   facet_wrap(~ material) +
   ggtitle("Correlation, by Band") +
   ylab("r value") +
@@ -340,9 +353,10 @@ ggplot(Cdata, aes(x=Band, y=r, col=Channel)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   theme_pander()
 
-ggplot(Cdata, aes(x=Band, y=p, col=Channel)) +
+ggplot(Rdata, aes(x=Band, y=p, col=Channel)) +
   geom_point() +
-  stat_summary(fun.data = "mean_se", col="black", alpha=0.5, geom = "errorbar") +
+  stat_summary(fun.data = "mean_se", col="black", alpha=0.5, 
+               geom = "errorbar") +
   ggtitle("p-value, by Band") +
   ylab("p value") +
   facet_wrap(~ material) +
@@ -357,7 +371,7 @@ ggplot(Cdata, aes(x=Band, y=p, col=Channel)) +
 Let's visualize only those channels that survive the FDR correction:
 
 ```{r}
-survivors <- Cdata %>%
+survivors <- Rdata %>%
   filter(q < 0.05)
   
 survivors %>%
@@ -378,7 +392,8 @@ focus <- Fdata %>%
 
 p1 <- ggplot(focus, aes(x=Alpha, y=Power)) +
   geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
-  geom_smooth(method = "lm", formula = y ~ x, col="red", fill="red", fullrange = T, lwd=2) +
+  geom_smooth(method = "lm", formula = y ~ x, col="red", 
+              fill="red", fullrange = T, lwd=2) +
   theme_pander() +
   scale_x_continuous() + 
   scale_y_continuous() + 
@@ -387,8 +402,6 @@ p1 <- ggplot(focus, aes(x=Alpha, y=Power)) +
   xlab(expression(paste(alpha, " Vocabulary"))) +
   ylab("Low Beta Power Over Channel P8") +
   ylim(8,12) +
-  #annotate("segment", x=0.1, y=0.1, xend=0.5, 
-  #         yend=0.5, col="grey", lwd=1, lty=2) +
   annotate("text", label = paste("R =", round(cor(focus$Alpha,
                                                   focus$Power),
                                               2)), 
