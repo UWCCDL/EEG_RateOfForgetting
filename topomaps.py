@@ -49,7 +49,7 @@ fontbold = {'fontname' : 'FreeSans',
 plt.rcParams['font.sans-serif'] = ['FreeSans']
 
 fig = plt.figure(figsize=(13, 5))
-
+#fig = plt.figure(figsize=(26, 10))
 i = 1
 
 for task in ["Vocabulary", "Maps"]:
@@ -58,35 +58,33 @@ for task in ["Vocabulary", "Maps"]:
     gs = gridspec.GridSpec(2, 6, width_ratios=[1, 1, 1, 1, 1, 0.15]) 
     for band in ['Theta', 'Alpha', 'Low Beta', 'Upper Beta', 'High Beta']:
         subsub = sub.loc[lambda x: x.Band == band]
-        print("..." + band)
-        montage = mne.channels.read_montage(kind="standard_1020")
-        info = mne.create_info(ch_names=list(subsub.Channel),
-                               sfreq=128,
-                               ch_types="eeg",
-                               montage=montage)
-
+        montage = mne.channels.make_standard_montage(kind="standard_1020")
+        print(list(subsub.Channel))
+        info = mne.create_info(ch_names = list(subsub.Channel),
+                               sfreq = 128.0,
+                               ch_types = "eeg",
+                               montage = montage)
         if (i == 6):
             i = i + 1
 
         axs = plt.subplot(gs[i-1])
         f=mne.viz.plot_topomap(data = subsub.r, 
-                               axes=axs,
-                               pos=info,
-                               mask=np.array([True for x in data]),
-                               vmin=-0.5,
-                               vmax=+0.5,
-                               sensors=True,
-                               show=False,
-                               show_names=True,
-                               res=100,
-                               names=subsub.Channel,
-                               outlines="head",
-                               contours=10,
-                               image_interp="nearest",
-                               cmap=plt.get_cmap("RdBu_r"),
-                               mask_params=dict(marker='o', markerfacecolor='white',
-                                                markeredgecolor='k', linewidth=0,
-                                                markersize=15))
+                               axes = axs,
+                               pos = info,
+                               mask = np.array([True for x in subsub.r]).reshape((14,1)),
+                               vmin = -0.5,
+                               vmax = +0.5,
+                               show = False,
+                               show_names = True,
+                               res = 1000,
+                               names = subsub.Channel,
+                               outlines = "head",
+                               contours = 10,
+                               image_interp = "nearest",
+                               cmap = plt.get_cmap("RdBu_r"),
+                               mask_params = dict(marker='o', markerfacecolor='w',
+                                                  markeredgecolor='k', linewidth=0,
+                                                  markersize=14))
             
         bname = band.replace("_", "")
         if i < 6:
