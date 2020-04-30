@@ -1,0 +1,478 @@
+---
+title: "Antelope Project Analysis: Eyes Open EEG Data"
+author: "Andrea Stocco"
+date: "April 20, 2020"
+output:
+  html_document:
+    code_folding: hide
+    theme: yeti
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(xtable)
+library(data.table)
+library(ggplot2)
+library(ggthemes)
+library(ggExtra)
+library(colorspace)
+library(RColorBrewer)
+library(gridExtra)
+library(ggdendro)
+source("../../QEEG_Emotiv_Analysis_Rscript.R")
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# (Optional) EEG Data Preprocessing
+
+Set the `process_raw` variable to `TRUE` to reprocess the raw EEG data.
+That might take a __very__ long time. 
+
+```{r}
+process_raw = F
+if (process_raw) {
+  for (sub in dir()[grep("A[1-9]", dir())]) {
+    setwd(sub)
+    analyze.logfile(sub, "open")
+    setwd("..")
+  }
+}
+```
+
+# Demographics and Behavioral Data
+
+
+First, let's load the behavioral data and transform it into a Wide format table
+
+```{r}
+behav <- read_tsv("../../behav_data.txt", col_types=cols())
+
+behav$material[behav$material=="Swahili"] <- "Vocabulary"
+behav$material[behav$material=="US Maps"] <- "Maps"
+
+behav <- behav %>% rename(Gender = gender, Age = age)
+
+wbehav <- behav %>% pivot_wider(values_from = alpha,
+                                id_cols = c(Subject, Gender, Age),
+                                names_from = material)
+```
+
+At this point, we can look at the participant demographocs
+
+## Values of Alpha for the two tasks
+
+We can now examine the distribution and correlation of Alpha values for Vocab and Maps: 
+
+```{r}
+
+mu <- behav %>% group_by(material) %>% summarize(alpha=mean(alpha))
+
+p1 <- ggplot(behav, aes(x=alpha, fill=material)) +
+  geom_histogram(col="white", binwidth = 0.025, alpha=0.5, position="identity") +
+  scale_color_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set1") +
+  geom_vline(data=mu, aes(xintercept=alpha,
+                          color=material),
+             linetype="dashed") +
+  xlab(expression(paste("Estimated value of ", alpha))) +
+  theme_pander() +
+  ylab("Count") +
+  ggtitle("(A) Distribution By Materials") +
+  theme(legend.position = c(0.2, 0.8)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p2 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
+  geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
+  geom_smooth(method = "lm", formula = y ~ x, col="red", fill="red", fullrange = T, lwd=2) +
+  theme_pander() +
+  scale_x_continuous() + 
+  scale_y_continuous() + 
+  ggtitle("(B) Correlation Across Materials") +
+  xlab(expression(paste(alpha, " Vocabulary"))) +
+  ylab(expression(paste(alpha, " Maps"))) +
+  geom_rug(col="black", lwd=1, alpha=.5) +
+  annotate("segment", x=0.1, y=0.1, xend=0.5, 
+           yend=0.5, col="grey", lwd=1, lty=2) +
+  theme(plot.title = element_text(hjust = 0.5))
+  
+
+grid.arrange(p1, p2, ncol=2)
+```
+
+```{r fig.width=5, fig.height=5 }
+p1 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
+  geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
+  geom_smooth(method = "lm", formula = y ~ x, 
+              col="red", fill="red", fullrange = T, lwd=2) +
+  theme_pander() +
+  scale_x_continuous() + 
+  scale_y_continuous() + 
+  coord_fixed() +
+  ggtitle("Correlation of Alpha Parameters\nAcross Materials") +
+  xlab(expression(paste(alpha, " Vocabulary"))) +
+  ylab(expression(paste(alpha, " Maps"))) +
+  annotate("segment", x=0.1, y=0.1, xend=0.5, 
+           yend=0.5, col="grey", lwd=1, lty=2) +
+  annotate("text", label = paste("R =", round(cor(wbehav$Vocabulary,
+                                                  wbehav$Maps),
+                                              2)), 
+                                 x=0.2, y=0.45, col="red") +
+  
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggMarginal(p1, col="white", fill="black", alpha=0.5,
+           type="hist", bins=13)
+```
+
+And here is a summary of the data:
+
+```{r}
+summary(wbehav) %>%
+  xtable() %>%
+  kable(digits = 3) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+# Load the spectra and the summary files
+
+```{r}
+spectra <- NULL
+for (sub in dir()[grep("A[1-9]", dir())]) {
+  table <- read_tsv(paste(sub, "/", sub, "_open_spectra.txt", sep=""),
+                    col_types = cols())
+  if (is.null(spectra)) {
+    spectra <- table
+  } else {
+    spectra <- spectra %>% bind_rows(table)
+  }
+}
+
+summary_eo <- NULL
+for (sub in dir()[grep("A[1-9]", dir())]) {
+  table <- read_tsv(paste(sub, "/", sub, "_open_summary.txt", sep=""),
+                    col_types = cols())
+  if (is.null(summary)) {
+    summary_eo <- table
+  } else {
+    summary_eo <- summary_eo %>% bind_rows(table)
+  }
+}
+
+```
+
+
+# EEG Data Analysis
+
+Here we begin looking at the EEG data analysis
+
+## Average spectrum
+
+First, let's examine the spectrograms for each channel to make sure it looks normal and the IAF (individual alpha frequency) is reasonable, i.e., the same for each channel and roughly in the middle of the band definition
+
+```{r}
+lspectra <- pivot_longer(spectra, cols=names(spectra)[3:130], names_to="Freq")
+
+lspectra <- lspectra %>% rename(Power = value)
+lspectra$Frequency <- as.numeric(substr(lspectra$Freq, 0, str_length(lspectra$Freq) -2))
+lspectra <- lspectra %>% add_column(Band="Delta", BandMin=0, BandMax=4) 
+lspectra$Band[lspectra$Frequency <= 40] <- "Gamma"
+lspectra$Band[lspectra$Frequency < 30] <- "High Beta"
+lspectra$Band[lspectra$Frequency < 18] <- "Upper Beta"
+lspectra$Band[lspectra$Frequency < 15] <- "Low Beta"
+lspectra$Band[lspectra$Frequency < 13] <- "Alpha"
+lspectra$Band[lspectra$Frequency < 8] <- "Theta"
+lspectra$Band[lspectra$Frequency < 4] <- "Delta"
+
+lspectra$BandMin[lspectra$Frequency <= 40] <- 30
+lspectra$BandMin[lspectra$Frequency < 30] <- 18
+lspectra$BandMin[lspectra$Frequency < 18] <- 15
+lspectra$BandMin[lspectra$Frequency < 15] <- 13
+lspectra$BandMin[lspectra$Frequency < 13] <- 8
+lspectra$BandMin[lspectra$Frequency < 8] <- 4
+lspectra$BandMin[lspectra$Frequency < 4] <- 0
+
+lspectra$BandMax[lspectra$Frequency <= 40] <- 40
+lspectra$BandMax[lspectra$Frequency < 30] <- 30
+lspectra$BandMax[lspectra$Frequency < 18] <- 18
+lspectra$BandMax[lspectra$Frequency < 15] <- 15
+lspectra$BandMax[lspectra$Frequency < 13] <- 13
+lspectra$BandMax[lspectra$Frequency < 8] <- 8
+lspectra$BandMax[lspectra$Frequency < 4] <- 4
+
+lspectra$Band <- factor(lspectra$Band, 
+                        levels = c("Delta", "Theta", "Alpha", 
+                                   "Low Beta", "Upper Beta",
+                                   "High Beta", "Gamma"))
+
+```
+
+To calculate the IAF, we need to load the summary files:
+
+```{r}
+iaf_cols <- paste(c("AF3", "AF4", "F3", "F4", 
+                    "F7", "F8", "FC5", "FC6", 
+                    "T7", "T8", "P7", "P8", 
+                    "O1", "O2"), 
+                  "IAF", 
+                  sep="_")
+
+iafs_eo <- summary_eo %>%
+  select(c("Subject", iaf_cols)) %>%
+  filter(Subject %in% wbehav$Subject) %>%
+  pivot_longer(cols = iaf_cols, names_sep="_", 
+               names_to = c("Channel", "Discard"), values_to = "IAF_EO") %>%
+  select(Subject, Channel, IAF_EO) %>%
+  group_by(Subject) %>%
+  summarize(IAF_EO = Mode(IAF_EO))
+```
+
+The mean eyes-open IAF is ```r round(mean(iafs_eo$IAF_EO),2)```, which is, 
+once more in the middle of the predefined alpha band (8-13 Hz).
+Here is the distribution of IAFs:
+
+```{r fig.width=5, fig.height=5}
+ggplot(data=iafs_eo, aes(x = IAF_EO)) +
+  geom_histogram(aes(col="white"), fill="black", 
+                 colour="white", alpha=0.5, 
+                 position="identity", binwidth = 0.5) +
+  ggtitle("IAF distribution") + 
+  xlab("IAF (Eyes Open)") +
+  theme_pander()
+```
+
+Let's look back at the IAF data for the eyes-closed recordings, and see if the
+IAF data correlates between sessions (as a sanity check).
+
+```{r echo=F, fig.width=6, fig.height=5}
+summary_ec <- NULL
+cd("../5mins_Eyes_Closed_EEG/")
+for (sub in dir()[grep("A[1-9]", dir())]) {
+  table <- read_tsv(paste(sub, "/", sub, "_closed_summary.txt", sep=""),
+                    col_types = cols())
+  if (is.null(summary)) {
+    summary_ec <- table
+  } else {
+    summary_ec <- summary_ec %>% bind_rows(table)
+  }
+}
+cd("../5mins_Eyes_Open_EEG/")
+
+iafs_ec <- summary_ec %>%
+  select(c("Subject", iaf_cols)) %>%
+  filter(Subject %in% wbehav$Subject) %>%
+  pivot_longer(cols = iaf_cols, names_sep="_", 
+               names_to = c("Channel", "Discard"), values_to = "IAF_EC") %>%
+  select(Subject, Channel, IAF_EC) %>%
+  group_by(Subject) %>%
+  summarize(IAF_EC = Mode(IAF_EC))
+
+iafs <- inner_join(iafs_eo, iafs_ec)
+
+ggplot(iafs, aes(x=IAF_EO, y=IAF_EC)) +
+  geom_count(alpha=0.5, col="black") + 
+  geom_smooth(method = "lm", formula = y ~ x, 
+              col="red", fill="red", fullrange = T, lwd=2) +
+  xlab("IAF Eyes Open (Hz)") +
+  ylab("IAF Eyes Closed (Hz") +
+  geom_text(data = summarize(iafs, Mean=mean(IAF_EC)),  # Avoid label overlaps
+            x= 9.5, y=11.5, 
+            col="red", 
+            label=paste("r =", 
+                        round(cor(iafs$IAF_EC, iafs$IAF_EO), 2))) +
+  ggtitle("Correlation Between Eyes-Closed and Eyes-Open IAF") +
+  theme_pander()
+
+```
+
+As it can be seen, there is a significant correlation in the IAFs between the
+two recordings (_p_ = ```r round(cor.test(iafs$IAF_EO, iafs$IAF_EC)$p.value, 6)```).
+Between recordings, the individual IAF remains the same +/- 
+```r mutate(iafs, Diff = (IAF_EC - AF_EO)**2) %>% summarize(MeanDiff = mean(Diff))``` 
+
+Again, before analyzing the spectral data, we will remove the first three 
+participants, who were internal pilot subjects used to make sure the software 
+was working fine.
+
+```{r}
+lspectra <- lspectra %>%
+  filter(Subject %in% behav$Subject)
+```
+
+Now, we can visualize the power spectra
+
+```{r}
+gd <- lspectra %>% 
+        group_by(Band) %>% 
+        summarise(
+          Min = mean(BandMin),
+          Max = mean(BandMax),
+          Power =mean(Power),
+          Frequency = mean(BandMin)
+        )
+
+ggplot(data=lspectra, aes(x=Frequency, y=Power, Channel)) +
+  geom_rect(data = gd, aes(xmin=Min, xmax=Max, fill=Band),  ymin=0, ymax=Inf, colour=NA, alpha=0.5) +
+  stat_summary(#aes(fill=Channel), 
+               fun.data=mean_sdl, 
+               geom="ribbon", colour="white", alpha=0.4) +
+  stat_summary(fun = mean, geom="line", lwd=1) +
+  facet_wrap(~ Channel, ncol=4) +
+  scale_alpha_manual(values = seq(0.1, 0.9, 0.1)) +
+  ggtitle("Power Spectrum Across Channels") +
+  ylab("Log Power") + 
+  xlab("Frequency (Hz)") + 
+  theme_pander() +
+  coord_cartesian(xlim=c(1,40), ylim=c(5, 17)) +
+  scale_fill_brewer(palette = "Set3") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Now, let's create a mean spectrogram with annotations that mark the frequency bands
+
+```{r}
+K = brewer.pal(7, "Set3")
+
+alspectra <- aggregate(lspectra[c("Power")],
+                       list(Subject=lspectra$Subject, 
+                            Frequency=lspectra$Frequency, 
+                            Band=lspectra$Band), 
+                       mean)
+
+ggplot(data=alspectra, aes(x=Frequency, y=Power, col=Power)) +
+  annotate("rect", xmin = 0, xmax = 4, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill=K[1]) +
+  annotate("rect", xmin = 4, xmax = 8, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill=K[2]) +
+  annotate("rect", xmin = 8, xmax = 13, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill=K[3]) +      
+  annotate("rect", xmin = 13, xmax = 15, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill=K[4]) +
+  annotate("rect", xmin = 15, xmax = 18, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill = K[5]) +
+  annotate("rect", xmin = 18, xmax = 30, ymin = 0, ymax = Inf, 
+           alpha = 0.5, fill=K[6]) +
+  annotate("rect", xmin = 30, xmax = 40, ymin = 0, ymax = Inf,
+           alpha = 0.5, fill=K[7]) +
+  stat_summary(fun.data=mean_sdl, geom="ribbon", colour="white",
+               alpha=0.5, fill="grey50") +
+  stat_summary(fun=mean, geom="line", lwd=2) +
+  coord_cartesian(xlim=c(0,40), ylim=c(5,18)) +
+  xlab("Frequency (Hz)") +
+  theme_pander() +
+  annotate("text", x=2, y=5, label="Delta", angle=90, hjust=0) +
+  annotate("text", x=6, y=5, label="Theta", angle=90, hjust=0) +
+  annotate("text", x=10.5, y=5, label="Alpha", angle=90, hjust=0) +
+  annotate("text", x=14, y=5, label="Low Beta", angle=90, hjust=0) +
+  annotate("text", x=16.5, y=5, label="Upper Beta", angle=90, hjust=0) +
+  annotate("text", x=24, y=5, label="High Beta", angle=90, hjust=0) +
+  annotate("text", x=35, y=5, label="Gamma", angle=90, hjust=0) 
+
+```
+
+# Correlations with Learning Rate
+
+First, we calculate the mean power for every band and channel, remove 
+participants not included, and correct for multiple comparisons by band: 
+
+```{r}
+wbehav <- wbehav %>%
+  mutate(GlobalAlpha=(Vocabulary + Maps)/2)
+
+Adata <- lspectra %>% 
+  group_by(Subject, Channel, Band) %>% 
+  summarize(Power=mean(Power))
+
+Fdata <- inner_join(Adata, behav, by="Subject")
+
+Cdata <- Fdata %>%
+  group_by(material, Channel, Band) %>%
+  summarise(r = cor(Power, alpha),
+            p = cor.test(Power, alpha)$p.value)
+
+Rdata <- Cdata %>%
+  group_by(material, Band) %>%
+  mutate(q = p.adjust(p, method="BH")) 
+```
+
+Here is the full table of statistics:
+
+```{r}
+write_csv(Rdata, "correlations_channel_band_eyes_open.csv", col_names = T)
+Rdata %>%
+  xtable() %>%
+  kable(digits = 3) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+And here is the corresponding distributions of _r_ and _p_ values. 
+The dashed lines correspond to a significant threshold of _p_  < .05 on either 
+a _r_ or a _p_-value scale. 
+
+```{r}
+ggplot(Cdata, aes(x=Band, y=r, col=Channel)) +
+  geom_point() +
+  stat_summary(fun.data = "mean_se", col="black", 
+               alpha=0.5, geom = "errorbar") +
+  facet_wrap(~ material) +
+  ggtitle("Correlation, by Band") +
+  ylab("r value") +
+  annotate("segment", x=-Inf, xend=Inf, y=0.28, yend = 0.28, lty=2) +
+  annotate("segment", x=-Inf, xend=Inf, y=-0.28, yend = -0.28, lty=2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme_pander()
+
+ggplot(Cdata, aes(x=Band, y=p, col=Channel)) +
+  geom_point() +
+  stat_summary(fun.data = "mean_se", col="black", 
+               alpha=0.5, geom = "errorbar") +
+  ggtitle("p-value, by Band") +
+  ylab("p value") +
+  facet_wrap(~ material) +
+  annotate("segment", x=-Inf, xend=Inf, y=0.05, yend = 0.05, lty=2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  scale_y_log10() +
+  theme_pander()
+```
+
+Let's tabulate only those channels that survive the FDR correction:
+
+```{r}
+survivors <- Rdata %>%
+  filter(q < 0.05)
+  
+survivors %>%
+  xtable() %>%
+  kable(digits = 3) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+And now, scatterplots and correlations:
+
+```{r fig.width=9, fig.height=9}
+
+focus <- Fdata %>%
+  filter(material == "Maps", 
+         Channel %in% survivors$Channel,
+         Band == "Upper Beta") %>%
+  rename(Alpha = alpha)
+
+ggplot(focus, aes(x=Alpha, y=Power)) +
+  geom_point(size=4, alpha=0.5, col="black") + 
+  geom_smooth(method = "lm", formula = y ~ x, 
+              col="red", fill="red", fullrange = T, lwd=2) +
+  theme_pander() +
+  scale_x_continuous() +   
+  scale_y_continuous() + 
+  ggtitle("Rate of Forgettering and Beta Power") +
+  xlab(expression(paste(alpha, " Maps"))) +
+  ylab("Upper Beta Power (13-15 Hz)") +
+  facet_wrap(~ Channel, scales="free_y") +
+  geom_text(data=survivors, col="red",
+            mapping=aes(x=0.25, y=9.5, 
+                        label= paste("r =", round(r, 2)))) +
+  theme(plot.title = element_text(hjust = 0.5))
+```

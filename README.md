@@ -47,7 +47,10 @@ We found that the rate of forgetting in long term declarative memory
 (as estimated by the alpha parameter in Pavlik & Anderson's model),
 with the strongest correlations found in the beta frequency band over
 frontal (AF3 and AF4) and right parietal (P8) lolcations, as shown in
-this topological map:
+these topological map for eyes-closed and eyes-open EEG recordings:
 
 ![Topological map of the correlations with rate of
  forgetting](topo_correlations_eyes_closed.png)
+
+![Topological map of the correlations with rate of
+ forgetting](topo_correlations_eyes_open.png)
