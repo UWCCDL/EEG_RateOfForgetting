@@ -94,7 +94,8 @@ p1 <- ggplot(behav, aes(x=alpha, fill=material)) +
 
 p2 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
   geom_point(size=4, alpha=0.5, col="black") + #col=K[7]) +
-  geom_smooth(method = "lm", formula = y ~ x, col="red", fill="red", fullrange = T, lwd=2) +
+  geom_smooth(method = "lm", formula = y ~ x, 
+              col="red", fill="red", fullrange = T, lwd=2) +
   theme_pander() +
   scale_x_continuous() + 
   scale_y_continuous() + 
@@ -385,18 +386,18 @@ multiple comparisons by frequency band:
 wbehav <- wbehav %>%
   mutate(GlobalAlpha=(Vocabulary + Maps)/2)
 
-Adata <- l_ec_spectra %>% 
+Adata_ec <- l_ec_spectra %>% 
   group_by(Subject, Channel, Band, Recording) %>% 
   summarize(Power=mean(Power))
 
-Fdata <- inner_join(Adata, behav, by="Subject")
+Fdata_ec <- inner_join(Adata_ec, behav, by="Subject")
 
-Rdata <- Fdata %>%
+Rdata_ec <- Fdata_ec %>%
   group_by(material, Channel, Band, Recording) %>%
   summarise(r = cor(Power, alpha),
             p = cor.test(Power, alpha)$p.value)
 
-Rdata <- Rdata %>%
+Rdata_ec <- Rdata_ec %>%
   group_by(material, Band, Recording) %>%
   mutate(q = p.adjust(p, method="BH")) 
 ```
@@ -404,8 +405,9 @@ Rdata <- Rdata %>%
 Here is the full table of statistics:
 
 ```{r}
-write_csv(Rdata, "correlations_channel_band_eyes_closed.csv", col_names = T)
-Rdata %>%
+write_csv(Rdata_ec, "correlations_channel_band_eyes_closed.csv", col_names = T)
+
+Rdata_ec %>%
   xtable() %>%
   kable(digits = 3) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
@@ -416,7 +418,7 @@ The dashed lines correspond to a significant threshold of _p_  < .05 on
 either a _r_ or a _p_-value scale. 
 
 ```{r}
-ggplot(Rdata, aes(x = Band, y = r, col = Channel)) +
+ggplot(Rdata_ec, aes(x = Band, y = r, col = Channel)) +
   geom_point() +
   stat_summary(fun.data = "mean_se", col="black", 
                alpha=0.5, geom = "errorbar") +
@@ -428,7 +430,7 @@ ggplot(Rdata, aes(x = Band, y = r, col = Channel)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   theme_pander()
 
-ggplot(Rdata, aes(x = Band, y = p, col = Channel)) +
+ggplot(Rdata_ec, aes(x = Band, y = p, col = Channel)) +
   geom_point() +
   stat_summary(fun.data = "mean_se", col="black", alpha=0.5, geom = "errorbar") +
   ggtitle("p-value, by Band") +
@@ -444,7 +446,7 @@ From the original list, we can extract only those channels that survive
 the FDR correction:
 
 ```{r}
-survivors <- Rdata %>%
+survivors <- Rdata_ec %>%
   filter(q < 0.05)
   
 survivors %>%
@@ -459,14 +461,14 @@ the relationship:
 
 ```{r fig.width=5, fig.height=5 }
 
-focus <- Fdata %>%
+focus <- Fdata_ec %>%
   filter(material == "Vocabulary", 
          Channel %in% survivors$Channel,
          Band == "Low Beta") %>%
   rename(Alpha = alpha)
 
-p<-ggplot(focus, aes(x=Alpha, y=Power)) +
-  geom_point(size=4, alpha=0.5, col="black") + 
+p <- ggplot(focus, aes(x = Alpha, y = Power)) +
+  geom_point(size = 4, alpha = 0.5, col = "black") + 
   geom_smooth(method = "lm", formula = y ~ x, 
               col="red", fill="red", fullrange = T, lwd=2) +
   theme_pander() +
@@ -480,8 +482,8 @@ p<-ggplot(focus, aes(x=Alpha, y=Power)) +
                         label= paste("r =", round(r, 2)))) +
   theme(plot.title = element_text(hjust = 0.5))
 
-ggMarginal(p, col="white", fill="black", alpha=0.5,
-           type="hist", bins=13)
+ggMarginal(p, col = "white", fill = "black", alpha = 0.5,
+           type = "hist", bins = 13)
 ```
 
 # Eyes-Open EEG Data
@@ -737,28 +739,29 @@ visual materials.
 wbehav <- wbehav %>%
   mutate(GlobalAlpha=(Vocabulary + Maps) / 2)
 
-Adata <- l_eo_spectra %>% 
+Adata_eo <- l_eo_spectra %>% 
   group_by(Subject, Channel, Band, Recording) %>% 
   summarize(Power=mean(Power))
 
-Fdata <- inner_join(Adata, behav, by = "Subject")
+Fdata_eo <- inner_join(Adata_eo, behav, by = "Subject")
 
-Cdata <- Fdata %>%
+Cdata_eo <- Fdata_eo %>%
   group_by(material, Channel, Band, Recording) %>%
   summarise(r = cor(Power, alpha),
             p = cor.test(Power, alpha)$p.value)
 
-Rdata <- Cdata %>%
+Rdata_eo <- Cdata_eo %>%
   group_by(material, Band, Recording) %>%
   mutate(q = p.adjust(p, method="BH")) 
 ```
 
-We save the data so that it can be visualized as a topomao with Python MNE. 
+We save the data so that it can be visualized as a topomap with Python MNE. 
 Here is the full table of statistics:
 
 ```{r}
-write_csv(Rdata, "correlations_channel_band_eyes_open.csv", col_names = T)
-Rdata %>%
+write_csv(Rdata_eo, "correlations_channel_band_eyes_open.csv", col_names = T)
+
+Rdata_eo %>%
   xtable() %>%
   kable(digits = 3) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
@@ -769,7 +772,7 @@ The dashed lines correspond to a significant threshold of _p_  < .05 on either
 a _r_ or a _p_-value scale. 
 
 ```{r}
-ggplot(Cdata, aes(x=Band, y=r, col=Channel)) +
+ggplot(Rdata_eo, aes(x = Band, y = r, col = Channel)) +
   geom_point() +
   stat_summary(fun.data = "mean_se", col="black", 
                alpha=0.5, geom = "errorbar") +
@@ -781,7 +784,7 @@ ggplot(Cdata, aes(x=Band, y=r, col=Channel)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   theme_pander()
 
-ggplot(Cdata, aes(x=Band, y=p, col=Channel)) +
+ggplot(Rdata_eo, aes(x = Band, y = p, col = Channel)) +
   geom_point() +
   stat_summary(fun.data = "mean_se", col="black", 
                alpha=0.5, geom = "errorbar") +
@@ -794,10 +797,38 @@ ggplot(Cdata, aes(x=Band, y=p, col=Channel)) +
   theme_pander()
 ```
 
+Now, we might wonder how much the correlations change from eyes closed to
+eyes open recordings. The best way to chack is to visualize then as a 
+scatterplot:
+
+```{r}
+Rdata <- bind_rows(Rdata_ec, Rdata_eo)
+wrdata <- pivot_wider(Rdata, id_cols = c("material", "Channel", "Band"),
+                      names_from = Recording, 
+                      values_from = r)
+
+ggplot(wrdata, aes(x = `Eyes Open`, y = `Eyes Closed`, 
+                   col = material)) +
+  annotate("segment", x = 0, y=-Inf, xend=0, 
+           yend=Inf, col="grey", lwd=1, lty=1) +
+  annotate("segment", x = -Inf, y=0, xend=Inf, 
+           yend=0, col="grey", lwd=1, lty=1) +
+  
+  geom_point(alpha=0.5, size=3) +
+  annotate("segment", x = -0.25, y=-0.25, xend=0.5, 
+           yend=0.5, col="black", lwd=1, lty=2) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  #geom_smooth(method = "lm", formula = y ~ x, 
+  #            fullrange = T, lwd = 1) +
+  scale_color_brewer(palette="Dark2") +
+  ggtitle("Correlation Coefficients Across Recordings") +
+  theme_pander()
+```
+
 Let's tabulate only those channels that survive the FDR correction:
 
 ```{r}
-survivors <- Rdata %>%
+survivors <- Rdata_eo %>%
   filter(q < 0.05)
   
 survivors %>%
@@ -817,7 +848,7 @@ slightly higher frequency (upper beta instead of low beta).
 Here is an overview of the scatterplots and correlations:
 
 ```{r fig.width=9, fig.height=9}
-focus <- Fdata %>%
+focus <- Fdata_eo %>%
   filter(material == "Maps", 
          Channel %in% survivors$Channel,
          Band == "Upper Beta") %>%
