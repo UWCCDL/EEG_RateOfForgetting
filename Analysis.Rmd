@@ -868,5 +868,6 @@ ggplot(focus, aes(x=Alpha, y=Power)) +
   geom_text(data=survivors, col="red",
             mapping=aes(x=0.25, y=9.5, 
                         label= paste("r =", round(r, 2)))) +
+  theme(panel.spacing = unit(1.5, "lines")) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
