@@ -1053,9 +1053,7 @@ abline(v=log(lmin), lty=2)
 abline(v=log(l1se), lty=2)
 ```
 
-Using the Lambda min value, we can now compare predicted vs. observed values 
-across _n_ fold validation (these values are non-deterministic, and will
-change slightly across different runs of this code)
+Using the Lambda min value, we can now compare predicted vs. observed values.
 
 ```{r}
 prediction <- predict(object = fit,
@@ -1100,7 +1098,7 @@ ggplot(comparison, aes(x=Subject, y=RoF), col=Condition) +
   theme_pander() +
   ylab("Rate of Forgetting")+
   ggtitle("Cross-Validation:\nPredicted vs. Observed Rates of Forgetting") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6)) 
 ```
 
 ```{r}
@@ -1125,6 +1123,11 @@ p <- ggplot(wcomparison, aes(x = Predicted, y = Observed)) +
 ggMarginal(p, col="white", fill="black", alpha=0.5,
            type="hist", bins=13)
 ```
+
+In terms of overall error, the root mean squared error between predicted and 
+observed Rate of Forgetting is _RMSE_ 
+= ```r round(sqrt(mean((prediction - Y)**2)), 3)```
+
 
 And now, let's print the full table of beta regression weights (for
 inspectio and analysis) at the desiored value of $\lambda_{min}$. We
@@ -1161,3 +1164,7 @@ bdf %>%
 
 write_csv(bdf, "group_lasso_weights.csv", col_names = T)
 ```
+
+And here is the visualization of the corresponding weights as a topomap:
+
+![Topomap of Beta weights](images/topo_group_lasso.png){width=9in}
