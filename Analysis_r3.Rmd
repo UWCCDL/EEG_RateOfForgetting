@@ -461,6 +461,7 @@ Rdata_ec_sub <- Rdata_ec %>%
 ggplot(Rdata_ec_sub, aes(x = x,
                          y = y,
                          fill = r,
+                         z = r,
                          label = Channel)) +
   scale_fill_distiller(palette = "RdBu",
                        limits=c(-0.45, 0.45)) +
