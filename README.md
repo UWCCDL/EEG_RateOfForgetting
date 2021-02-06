@@ -2,8 +2,7 @@
 
 This repository contains the data, analysis, and results of the
 "Antelope" project, carried out by Peiyun Zhou and Andrea Stocco at
-the University of Washington and Florian Sense and Hedderik van Rijn
-at the University of Groningen, The Netherlands.
+the University of Washington and [Florian Sense](https://fsense.github.io/) and [Hedderik van Rijn](http://www.van-rijn.org/) at the University of Groningen, The Netherlands.
 
 ## Rationale
 
