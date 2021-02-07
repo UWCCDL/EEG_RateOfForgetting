@@ -138,6 +138,7 @@ p3 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
 
 ggMarginal(p3, col="white", fill="black", alpha=0.5,
            type="hist", bins=13)
+ggsave("images/figure1.png")
 ```
 
 And here is a summary of the data:
@@ -470,13 +471,13 @@ ggplot(Rdata_ec_sub, aes(x = x,
   facet_grid(material~Band, switch="both") +
   #labs(fill = expression(paste("Correlation with ", alpha))) +
   labs(fill = "Correlation") +
-  stat_scalpmap(grid_res = 100,
+  stat_scalpmap(grid_res = 200,
                 interp_limit = "skirt",  # head or skirt
                 method = "biharmonic")+
   geom_mask(scale_fac = 1.6) +
   geom_head(color="black") +
   geom_channels(geom = "text",
-                size = 3,
+                size = 2,
                 vjust = 1.5
   ) +
   geom_channels(geom = "point",
@@ -489,7 +490,9 @@ ggplot(Rdata_ec_sub, aes(x = x,
                            alpha, 
                            ", Eyes Closed"))) +
   theme(plot.title = element_text(hjust = 0.5))
+
 ggsave("images/topo_ec.pdf", width=9, height = 3.5)
+ggsave("images/figure3.png", width=9, height = 3.5)
 ```
 
 ### Distribution of _r_ and _p_ values
@@ -565,6 +568,8 @@ p <- ggplot(focus, aes(x = Alpha, y = Power)) +
 
 ggMarginal(p, col = "white", fill = "black", alpha = 0.5,
            type = "hist", bins = 13)
+
+ggsave("images/figure4.png")
 ```
 
 # Eyes-Open EEG Data
@@ -812,6 +817,8 @@ ggplot(data=al_spectra, aes(x = Frequency, y = Power,
   annotate("text", x=16.5, y=18, label="Upper Beta", angle=90, hjust=1) +
   annotate("text", x=24, y=18, label="High Beta", angle=90, hjust=1) +
   annotate("text", x=35, y=18, label="Gamma", angle=90, hjust=1) 
+
+ggsave("images/figure2.png")
 ```
 
 ## Correlations Across Eyes Open and Eyes Closed Recordings
@@ -956,17 +963,17 @@ ggplot(Rdata_eo_sub, aes(x = x,
   facet_grid(material~Band, switch="both") +
   #labs(fill = expression(paste("Correlation with ", alpha))) +
   labs(fill = "Correlation") +
-  stat_scalpmap(grid_res = 100,
+  stat_scalpmap(grid_res = 200,
                 interp_limit = "skirt",  # head or skirt
                 method = "biharmonic")+
   geom_mask(scale_fac = 1.6) +
   geom_head(color="black") +
   geom_channels(geom = "text",
-                size = 3,
+                size = 2,
                 vjust = 1.5
   ) +
   geom_channels(geom = "point",
-                size = 2 ,
+                size = 2,
                 aes(col = Significance)) +
   scale_color_manual(values = c("black", 
                                 "purple", 
@@ -976,6 +983,7 @@ ggplot(Rdata_eo_sub, aes(x = x,
                            ", Eyes Open"))) +
   theme(plot.title = element_text(hjust = 0.5))
 ggsave("images/topo_eo.pdf", width=9, height = 3.5)
+ggsave("images/figure6.png")
 ```
 
 ### Distributions of _r_ and _p_ values
@@ -1083,6 +1091,8 @@ ggplot(focus, aes(x=Alpha, y=Power)) +
                         label= paste("r =", round(r, 2)))) +
   theme(panel.spacing = unit(1.5, "lines")) +
   theme(plot.title = element_text(hjust = 0.5))
+
+ggsave("images/figure7.png")
 ```
 
 # Summary
