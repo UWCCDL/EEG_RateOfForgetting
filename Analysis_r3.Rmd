@@ -129,7 +129,7 @@ p3 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
   ylab(expression(paste(alpha, " Maps"))) +
   annotate("segment", x=0.1, y=0.1, xend=0.5, 
            yend=0.5, col="grey", lwd=1, lty=2) +
-  annotate("text", label = paste("R =", round(cor(wbehav$Vocabulary,
+  annotate("text", label = paste("r =", round(cor(wbehav$Vocabulary,
                                                   wbehav$Maps),
                                               2)), 
                                  x=0.2, y=0.45, col="red") +
@@ -489,6 +489,7 @@ ggplot(Rdata_ec_sub, aes(x = x,
                            alpha, 
                            ", Eyes Closed"))) +
   theme(plot.title = element_text(hjust = 0.5))
+ggsave("images/topo_ec.pdf", width=9, height = 3.5)
 ```
 
 ### Distribution of _r_ and _p_ values
@@ -974,6 +975,7 @@ ggplot(Rdata_eo_sub, aes(x = x,
                            alpha, 
                            ", Eyes Open"))) +
   theme(plot.title = element_text(hjust = 0.5))
+ggsave("images/topo_eo.pdf", width=9, height = 3.5)
 ```
 
 ### Distributions of _r_ and _p_ values
