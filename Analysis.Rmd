@@ -126,7 +126,7 @@ p3 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
   ylab(expression(paste(alpha, " Maps"))) +
   annotate("segment", x=0.1, y=0.1, xend=0.5, 
            yend=0.5, col="grey", lwd=1, lty=2) +
-  annotate("text", label = paste("R =", round(cor(wbehav$Vocabulary,
+  annotate("text", label = paste("r =", round(cor(wbehav$Vocabulary,
                                                   wbehav$Maps),
                                               2)), 
                                  x=0.2, y=0.45, col="red") +
@@ -161,7 +161,7 @@ That might take a __very__ long time.
 process_raw = F
 if (process_raw) {
   setwd("./data/eyes_closed/")
-  for (sub in dir(grep("A[1-9]", dir()))) {
+  for (sub in dir()[grep("A[1-9]", dir())]) {
     setwd(sub)
     analyze.logfile(sub, "closed")
     setwd("..")
@@ -498,13 +498,13 @@ That might take a __very__ long time.
 ```{r}
 process_raw = F
 if (process_raw) {
-  setwd("eyes_open/")
-  for (sub in dir(grep("A[1-9]", dir()))) {
+  setwd("./data/eyes_open/")
+  for (sub in dir()[grep("A[1-9]", dir())]) {
     setwd(sub)
     analyze.logfile(sub, "open")
     setwd("..")
   }
-  setwd("..")
+  setwd("../..")
 }
 ```
 
@@ -874,297 +874,3 @@ ggplot(focus, aes(x=Alpha, y=Power)) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-# Predicting Rate of Forgetting with Group Lasso
-
-So far, we have shown that neurophysiological signals exists that are 
-correlated with the rate of forgetting. This, however, does not directly 
-answer wheter we could "read" an individual's rate of forgetting from their
-EEG data directy. 
-
-## Group LASSO
-
-To do so, we need to use a ML approach. Specifically, here we will use 
-_group LASSO_ regresso. Group LASSO is a way to combine regression, validation,
-and feature selection into a single approach. 
-
-LASSO works like a normal regression, with the additional constraint that the 
-$\beta$ regressors need to minimize the sum of the residual sum of squares 
-(RSS) and the quantity $- \lambda||\beta||_{1}$, where $||\beta||_{1}$ is the 
-first-order norm (the sum of absolute values of each regressor weight). For
-$\lambda = 0$, LASSO reduces to normal regression but, as the value of 
-$\lambda$ grows, more and more regressors are "pushed" to zero and removed from
-the pool. In _group_ LASSO, regressors are combined
-and selected by groups, which is a natural choice when natural groupings exists,
-as in the cases of frequency bands.
-
-As a demo, we will pilot this approach to eyes-closed recordings and the 
-combined rates of forgetting.an 
-
-## Data Preparation
-
-First, we need to transform the data appropriately, converting from the long 
-to the wide format, which is better suited for regression: 
-
-```{r}
-library(gglasso)
-wfdata <- Fdata_ec %>% 
-  pivot_wider(id_cols = c("Subject", "Channel", 
-                          "Band", "material", "alpha"), 
-              names_from = c("Channel", "Band"), 
-              values_from = c("Power"))
-
-wide_data_ec <- wfdata %>%
-  pivot_wider(names_from = c("material"), 
-              values_from = "alpha")
-```
-
-From the wide format data, we are going to define the data that will enter
-the regression, the matrix of observations _X_ and the vector of variables 
-_Y_. The matrix of observations _X_ is 50 x 98 matrix, corresponding
-to 50 participants _x_  98 possible power values (14 channels _x_ 7 frequency
-bands). The _Y_ vector is made of 50 observed rates of forgetting. To make
-the prediction reliable, we will average the rates of forgetting across 
-materials (Maps + Vocabulary)
-
-```{r}
-
-channel_names <- c("AF3", "AF4", "F3", "F4", 
-                   "F7", "F8", "FC5", "FC6", 
-                   "T7", "T8", "P7", "P8", 
-                   "O1", "O2")
-
-
-band_names <- c("Delta", "Theta", "Alpha", "Low Beta", 
-                "Upper Beta", "High Beta", "Gamma")
-
-by_band_order <- as.vector(
-  outer(channel_names, 
-        band_names, 
-        function(x, y){
-          paste(x, y, sep="_")
-          }))
-
-# Predictors
-X <- wide_data_ec[,c(-1, -100, -101)] %>%
-  #select(ends_with("Beta")) %>%
-  as.matrix()
-
-X <- X[,by_band_order]
-# We need to reorder X by frequency bands
-
-
-# Maps
-Ymaps <- wide_data_ec[,c(101)] %>%
-  as.matrix()
-
-# Vocab
-Yvoc <- wide_data_ec[,c(101)] %>%
-  as.matrix()
-
-# Average across materials to obrtain stable estimates
-Y <- (Ymaps + Yvoc)/2
-
-# Let's save the mean (will be halpful later)
-uY <- mean(Y)
-
-# Center Y to remove dominant effect of intercept
-Y <- Y - uY
-```
-
-Finally, we need to define our set of grouping variables, defined as a vector
-of numbers that identify each group. We are going to create two such vectors, 
-one for the freqency _bands_ and one for the _channels_. In this example
-we are going to use _bands_ as the grouping variables.
-
-```{r}
-bands <- rep(1:7, each=14)
-channels <- sort(rep(1:14, 7))
-```
-
-## Fitting the LASSO
-
-Now, with that in place, we can fit the LASSO model. The LASSO model is fit
-much like a normal regression, with an additional partameter $\lambda$. 
-
-Because we do not know _a priori_ which value of $lambda$ to pick, the canonical
-solution is to fit fit different models for different values of $\lambda$.
-
-```{r}
-fit <- gglasso(x = X, y = Y, 
-               group = bands,
-               loss = 'ls', 
-               nlambda=100,
-               lambda.factor = 0.001)
-coef.mat=fit$beta
-```
-
-## Finding the optimal $\lambda$ with Cross-Validation
-
-Our goal, of course, is generalizability across participants. Although the fit 
-model is important, what we really care is a different measure, that of 
-_cross-validation_. For cross-validation, we are going to use the _n_-fold 
-approach, in which the data is randomly split so that 1/_n_ of it is saved for
-test. (if _n_ is identical to the number of participants, it becomes the
-"Leave-One-Out" validation scheme). Here, we used the Leave-One-Out method, 
-which guarantees that the results are the same every time this script is ruin
-(because there only one possible permutation of the data). So, _n_ = 50.
-
-```{r}
-fit.cv <- cv.gglasso(x = X,
-                     y = Y,
-                     group = bands,
-                     pred.loss = "L1",
-                     nlambda = 100,
-                     lambda.factor = 0.001,
-                     nfolds = 50)
-```
-
-### Visualizing Validation Results
-
-Here are the fit and cross-validation plots, with the vertical lines marking
-the points corresponding to $\lambda_{min}$ (optimal for cross-validation) and  
-$\lambda_{1SE}$ (more conservative model). Because we have used the 
-Leave-One-Out validation scheme, we are can use the the more aggressive 
-$\lambda_{min}$ estimate, since our sample of the folds was exhaustive.
-
-```{r}
-# Best lambda
-
-lmin <- fit.cv$lambda.min  # Optimal lambda, maximizes generalization
-l1se <- fit.cv$lambda.1se  # Conservative model, min + 1SE
-
-plot(fit.cv, 
-     pch=20,
-     lwd=2)
-
-plot(fit, group=T, 
-     col = inferno(length(unique(fit$group)) + 1), 
-     lwd = 2)
-
-legend(x="topright", 
-       legend=c("Delta", "Theta", "Alpha",
-                "Low Beta", "Upper Beta", "High Beta",
-                "Gamma"),
-       bty="n",
-       ncol=2,
-       col=inferno(length(unique(fit$group)) + 1),
-       lty=1, lwd=2)
-abline(v=log(lmin), lty=2)
-abline(v=log(l1se), lty=2)
-```
-
-Using the Lambda min value, we can now compare predicted vs. observed values.
-
-```{r}
-prediction <- predict(object = fit,
-                    newx = X,
-                    s = lmin,
-                    type='link')
-
-observed <- data.frame(Subject = wide_data_ec$Subject,
-                       RoF = as_vector(Y) + uY,
-                       Condition = "Observed") %>%
-  rename(RoF = Maps)
-
-predicted <- data.frame(Subject = wide_data_ec$Subject,
-                       RoF = as_vector(prediction) + uY,
-                       Condition = "Predicted") %>%
-  rename(RoF = X1)
-
-comparison <- as_tibble(rbind(observed, predicted))
-
-plt = cbind(Y,
-            predict(object = fit,
-                    newx = X,
-                    s = lmin,
-                    type='link'))
-
-# matplot(plt,
-#         main="Predicted vs Actual",
-#         type='b',
-#         lwd=2,
-#         pch="o",
-#         col=viridis(3),
-#         xlab="Subject",
-#         ylab="Rate of Forgetting (alpha)")
-
-ggplot(comparison, aes(x=Subject, y=RoF), col=Condition) +
-  geom_point(aes(col=Condition)) +
-  geom_line(alpha=0.5, lty=2) +
-  annotate("text", x= 40, y = 0.20, 
-           label=(paste("r =", 
-                        round(cor(Y, prediction),
-                              2)))) +
-  theme_pander() +
-  ylab("Rate of Forgetting")+
-  ggtitle("Cross-Validation:\nPredicted vs. Observed Rates of Forgetting") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6)) 
-```
-
-```{r}
-wcomparison <- comparison %>%
-  pivot_wider(names_from=Condition, values_from = RoF)
-
-p <- ggplot(wcomparison, aes(x = Predicted, y = Observed)) +
-  geom_point(alpha=0.5, size=4) +
-  geom_abline(slope = 1, intercept = 0,
-              lwd=1, col="blue", lty=2) +
-  annotate("text", x= 0.40, y = 0.25, 
-           label=(paste("r =", 
-                        round(cor(Y, prediction),
-                              2)))) +
-  theme_pander() +
-  #coord_fixed() +
-  coord_equal(ratio=1) +
-  ylab("Rate of Forgetting (Observed)") +
-  xlab("Rate of Forgetting (Predicted)") +
-  ggtitle("Cross-Validation") 
-
-ggMarginal(p, col="white", fill="black", alpha=0.5,
-           type="hist", bins=13)
-```
-
-In terms of overall error, the root mean squared error between predicted and 
-observed Rate of Forgetting is _RMSE_ 
-= ```r round(sqrt(mean((prediction - Y)**2)), 3)```
-
-
-And now, let's print the full table of beta regression weights (for
-inspectio and analysis) at the desiored value of $\lambda_{min}$. We
-can also save the weights for future analysis.
-
-```{r}
-
-get_channel <- function(s) {
-  str_split(s, "_", 2)[[1]][1]
-}
-
-get_band <- function(s) {
-  str_split(s, "_", 2)[[1]][2]
-}
-
-vget_channel <- Vectorize(get_channel)
-vget_band <- Vectorize(get_band)
-
-
-coef(fit.cv, 
-     s=lmin) -> betas
-  
-bdf <- data.frame("Predictor" = rownames(betas),
-                  "Beta" = as.numeric(betas)) %>%
-  mutate(Channel = vget_channel(Predictor),
-         Band = vget_band(Predictor)) 
-
-bdf %>%
-  filter(Beta != 0) %>%
-  xtable() %>%
-  kable(digits = 5) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
-
-
-write_csv(bdf, "group_lasso_weights.csv", col_names = T)
-```
-
-And here is the visualization of the corresponding weights as a topomap:
-
-![Topomap of Beta weights](images/topo_group_lasso.png){width=9in}

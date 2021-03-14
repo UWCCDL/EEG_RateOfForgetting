@@ -138,7 +138,8 @@ p3 <- ggplot(wbehav, aes(x=Vocabulary, y=Maps)) +
 
 ggMarginal(p3, col="white", fill="black", alpha=0.5,
            type="hist", bins=13)
-ggsave("images/figure1.png")
+ggsave("images/figure1.png", ggMarginal(p3, col="white", fill="black", alpha=0.5,
+           type="hist", bins=13),  width=5, height = 5, dpi = 300)
 ```
 
 And here is a summary of the data:
@@ -474,10 +475,10 @@ ggplot(Rdata_ec_sub, aes(x = x,
   stat_scalpmap(grid_res = 200,
                 interp_limit = "skirt",  # head or skirt
                 method = "biharmonic")+
-  geom_mask(scale_fac = 1.6) +
+  #geom_mask(scale_fac = 1.6) +
   geom_head(color="black") +
   geom_channels(geom = "text",
-                size = 2,
+                size = 3,
                 vjust = 1.5
   ) +
   geom_channels(geom = "point",
@@ -492,7 +493,7 @@ ggplot(Rdata_ec_sub, aes(x = x,
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave("images/topo_ec.pdf", width=9, height = 3.5)
-ggsave("images/figure3.png", width=9, height = 3.5)
+ggsave("images/figure3.png", width=9, height = 3.5, dpi=300)
 ```
 
 ### Distribution of _r_ and _p_ values
@@ -788,19 +789,19 @@ al_spectra <- al_spectra %>% ungroup()
 ggplot(data=al_spectra, aes(x = Frequency, y = Power, 
                             col = Recording, fill = Recording)) +
   annotate("rect", xmin = 0, xmax = 4, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill=K[1]) +
+           alpha = 0.4, fill=K[1]) +
   annotate("rect", xmin = 4, xmax = 8, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill=K[2]) +
+           alpha = 0.4, fill=K[2]) +
   annotate("rect", xmin = 8, xmax = 13, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill=K[3]) +      
+           alpha = 0.4, fill=K[3]) +      
   annotate("rect", xmin = 13, xmax = 15, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill=K[4]) +
+           alpha = 0.4, fill=K[4]) +
   annotate("rect", xmin = 15, xmax = 18, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill = K[5]) +
+           alpha = 0.4, fill = K[5]) +
   annotate("rect", xmin = 18, xmax = 30, ymin = 0, ymax = Inf, 
-           alpha = 0.5, fill=K[6]) +
+           alpha = 0.4, fill=K[6]) +
   annotate("rect", xmin = 30, xmax = 40, ymin = 0, ymax = Inf,
-           alpha = 0.5, fill=K[7]) +
+           alpha = 0.4, fill=K[7]) +
   stat_summary(fun.data = mean_sdl, geom = "ribbon", 
                alpha = 0.5, col = "white") +
   scale_color_brewer(palette = "Set1") +
@@ -818,7 +819,7 @@ ggplot(data=al_spectra, aes(x = Frequency, y = Power,
   annotate("text", x=24, y=18, label="High Beta", angle=90, hjust=1) +
   annotate("text", x=35, y=18, label="Gamma", angle=90, hjust=1) 
 
-ggsave("images/figure2.png")
+ggsave("images/figure2.png", dpi=300)
 ```
 
 ## Correlations Across Eyes Open and Eyes Closed Recordings
@@ -966,10 +967,10 @@ ggplot(Rdata_eo_sub, aes(x = x,
   stat_scalpmap(grid_res = 200,
                 interp_limit = "skirt",  # head or skirt
                 method = "biharmonic")+
-  geom_mask(scale_fac = 1.6) +
+  #geom_mask(scale_fac = 1.6) +
   geom_head(color="black") +
   geom_channels(geom = "text",
-                size = 2,
+                size = 3,
                 vjust = 1.5
   ) +
   geom_channels(geom = "point",
@@ -983,7 +984,7 @@ ggplot(Rdata_eo_sub, aes(x = x,
                            ", Eyes Open"))) +
   theme(plot.title = element_text(hjust = 0.5))
 ggsave("images/topo_eo.pdf", width=9, height = 3.5)
-ggsave("images/figure6.png")
+ggsave("images/figure6.png", width=9, height = 3.5, dpi=300)
 ```
 
 ### Distributions of _r_ and _p_ values
@@ -1019,7 +1020,7 @@ ggplot(Rdata_eo, aes(x = Band, y = p, col = Channel)) +
 ```
 
 Now, we might wonder how much the correlations change from eyes closed to
-eyes open recordings. The best way to chack is to visualize then as a 
+eyes open recordings. The best way to chack is to visualize them as a 
 scatterplot:
 
 ```{r}
@@ -1125,7 +1126,9 @@ aes(label = Channel),position=position_stack(vjust=0.5))+
   ggtitle("Significant Channels Across All Data") +
   theme_pander() + 
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_fill_npg()
+  scale_fill_d3()
+
+ggsave(filename = "images/figure8.png", dpi = 600)
 ```
 
 ## Similarity of Findings Across Materials
