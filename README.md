@@ -6,7 +6,7 @@ the University of Washington and [Florian Sense](https://fsense.github.io/) and 
 
 For more information about the project, please refer to the following publoications:
 
-   Zhou, P., Sense, F., Van Rijn, H., & Stocco, A. (2021). Reflections of idiographic long-term memory characteristics in resting-state neuroimaging data. _Cognition_, 212, 104660.
+>   Zhou, P., Sense, F., Van Rijn, H., & Stocco, A. (2021). Reflections of idiographic long-term memory characteristics in resting-state neuroimaging data. _Cognition_, 212, 104660.
 
 ## Rationale
 
