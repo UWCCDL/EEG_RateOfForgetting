@@ -4,6 +4,10 @@ This repository contains the data, analysis, and results of the
 "Antelope" project, carried out by Peiyun Zhou and Andrea Stocco at
 the University of Washington and [Florian Sense](https://fsense.github.io/) and [Hedderik van Rijn](http://www.van-rijn.org/) at the University of Groningen, The Netherlands.
 
+For more information about the project, please refer to the following publoications:
+
+   Zhou, P., Sense, F., Van Rijn, H., & Stocco, A. (2021). Reflections of idiographic long-term memory characteristics in resting-state neuroimaging data. _Cognition_, 212, 104660.
+
 ## Rationale
 
 In a series of papers, Sense and van Rijn demonstrated that the rate
